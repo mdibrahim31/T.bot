@@ -1,14 +1,14 @@
 import os
 import re
+import asyncio
 import requests
 import geopy.distance
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 
+# ১. পরিবেশ চলক (Environment Variable) থেকে টোকেন নেওয়া
 API_TOKEN = os.getenv("BOT_TOKEN")
-# যদি Google Maps API ব্যবহার করতে চাও তবে এখানে API Key বসাবে (ঐচ্ছিক)
-GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -19,6 +19,7 @@ location_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
+# ইউজারদের লোকেশন জমা রাখার ডিকশনারি
 user_locations = {}
 
 @dp.message(Command("start"))
@@ -30,19 +31,19 @@ async def start_cmd(message: Message):
         reply_markup=location_keyboard
     )
 
-# ১. ব্যবহারকারীর বর্তমান লোকেশন রিসিভ করা
+# ২. ব্যবহারকারীর বর্তমান লোকেশন রিসিভ করা
 @dp.message(F.location)
 async def handle_location(message: Message):
     user_id = message.from_user.id
     lat = message.location.latitude
     lon = message.location.longitude
     
-    # ইউজার লোকেশন সেভ করে রাখা
+    # ইউজার লোকেশন সেভ করা
     user_locations[user_id] = (lat, lon)
     
     await message.answer("✅ তোমার বর্তমান লোকেশন পেয়েছি! এবার আমাকে গুগল ম্যাপের কোনো পিন পয়েন্টের লিংক পাঠাও।")
 
-# ২. গুগল ম্যাপের পিন পয়েন্ট বা লিংক রিসিভ করা ও দূরত্ব বের করা
+# ৩. গুগল ম্যাপের পিন পয়েন্ট বা লিংক রিসিভ করা ও দূরত্ব বের করা
 @dp.message(F.text)
 async def handle_map_link(message: Message):
     user_id = message.from_user.id
@@ -54,53 +55,61 @@ async def handle_map_link(message: Message):
     text = message.text
     dest_lat, dest_lon = None, None
 
-    # গুগল ম্যাপের লিংক থেকে Latitude & Longitude খুঁজে বের করা
     try:
-        # যদি সর্ট লিংক হয় (e.g., https://maps.app.goo.gl/...)
-        if "maps.app.goo.gl" in text or "goo.gl" in text:
-            response = requests.get(text, allow_redirects=True)
-            text = response.url
+        # গুগল ম্যাপের শর্ট লিংক হলে মূল লিংক বের করা
+        if "maps.app.goo.gl" in text or "goo.gl" in text or "google.com/maps" in text:
+            urls = re.findall(r'(https?://[^\s]+)', text)
+            if urls:
+                target_url = urls[0]
+                session = requests.Session()
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                response = session.get(target_url, headers=headers, allow_redirects=True)
+                text = response.url
 
-        # URL থেকে কোঅর্ডিনেট বের করা (e.g. @22.3569,91.7832)
+        # ১. প্যাটার্ন: @22.3569,91.7832
         match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
+        
+        # ২. প্যাটার্ন: q=22.3569,91.7832
         if not match:
-            # অন্য ফরম্যাটের লিংক সার্চ করা (e.g. q=22.3569,91.7832)
-            match = re.search(r'q=(-?\d+\.\d+),(-?\d+\.\d+)', text)
+            match = re.search(r'[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)', text)
             
-        if match:
+        # ৩. প্যাটার্ন: ll=22.3569,91.7832
+        if not match:
+            match = re.search(r'[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)', text)
+
+        # ৪. প্যাটার্ন: !3d22.3569!4d91.7832 (Google Maps Desktop/App format)
+        if not match:
+            match_3d_4d = re.search(r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', text)
+            if match_3d_4d:
+                dest_lat = float(match_3d_4d.group(1))
+                dest_lon = float(match_3d_4d.group(2))
+
+        if match and dest_lat is None:
             dest_lat = float(match.group(1))
             dest_lon = float(match.group(2))
+
     except Exception as e:
-        print("URL resolve error:", e)
+        print("URL Extract Error:", e)
 
     if dest_lat is None or dest_lon is None:
-        await message.answer("❌ গুগল ম্যাপের সঠিক লিংক খুঁজে পাওয়া যায়নি। দয়া করে সম্পূর্ণ ম্যাপ বা পিন পয়েন্ট লিংক পাঠাও।")
+        await message.answer("❌ গুগল ম্যাপের পিন পয়েন্ট থেকে লোকেশন বের করা যায়নি। ম্যাপ থেকে পিন ড্রপ করে বা অন্য গুগল ম্যাপ লিংক শেয়ার করো।")
         return
 
-    # ২ পয়েন্টের স্থানাংক
+    # দুই পয়েন্টের স্থানাংক
     origin = user_locations[user_id]
     destination = (dest_lat, dest_lon)
 
-    # গুগল API থাকলে রাস্তার দূরত্বের হিসাব
-    if GOOGLE_MAPS_API_KEY:
-        url = f"https://maps.googleapis.com/maps/api/distancematrix/json?origins={origin[0]},{origin[1]}&destinations={dest_lat},{dest_lon}&key={GOOGLE_MAPS_API_KEY}"
-        res = requests.get(url).json()
-        try:
-            distance_text = res["rows"][0]["elements"][0]["distance"]["text"]
-            duration_text = res["rows"][0]["elements"][0]["duration"]["text"]
-            await message.answer(f"🚗 **রাস্তার দূরত্ব:** {distance_text}\n⏱️ **আনুমানিক সময়:** {duration_text}")
-            return
-        except Exception:
-            pass
-
-    # বিকল্প: Geopy ব্যবহার করে সোজা লাইনের দূরত্ব হিসাব (বিনামূল্যে)
+    # geopy দিয়ে দূরত্ব হিসাব
     distance_km = geopy.distance.geodesic(origin, destination).km
-    await message.answer(f"📏 **সোজা লাইনের দূরত্ব (Straight Distance):** {distance_km:.2f} কি.মি.")
+    
+    await message.answer(
+        f"📍 **গন্তব্য পাওয়া গেছে!**\n"
+        f"📏 **সরাসরি দূরত্ব (Straight Distance):** {distance_km:.2f} কি.মি."
+    )
 
 async def main():
     print("বট চালু হচ্ছে...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
