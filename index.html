@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vendor Dashboard</title>
-  <!-- Supabase JS Client Library -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; background: #f9f9f9; }
@@ -24,9 +23,8 @@
   </div>
 
   <script>
-    // ⚠️ আপনার Supabase URL এবং Anon Key বসান
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const SUPABASE_URL = 'https://koymnainhkuwfkptqdgt.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_N5X02gPbt6FiD2MBaIuVMw_5V15eXXA';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function uploadAndSave() {
@@ -43,9 +41,9 @@
       const fileName = `${Date.now()}_${file.name}`;
       status.innerText = "Uploading image...";
 
-      // ১. Supabase Storage Bucket-এ আপলোড
+      // Supabase Storage Bucket-এ আপলোড
       const { data: storageData, error: storageError } = await supabase.storage
-        .from('product-images') // নিশ্চিত করুন বাকেটের নাম 'product-images'
+        .from('product-images')
         .upload(fileName, file);
 
       if (storageError) {
@@ -53,17 +51,17 @@
         return;
       }
 
-      // ২. Public URL সংগ্রহ
+      // Public URL সংগ্রহ
       const { data: urlData } = supabase.storage
         .from('product-images')
         .getPublicUrl(fileName);
 
       const imageUrl = urlData.publicUrl;
 
-      // ৩. Database Table-এ সেভ
+      // Database Table-এ সেভ
       status.innerText = "Saving to database...";
       const { error: dbError } = await supabase
-        .from('products') // নিশ্চিত করুন টেবিলের নাম 'products'
+        .from('products')
         .insert([{ name: name, image_url: imageUrl }]);
 
       if (dbError) {
