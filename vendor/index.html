@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendor Dashboard - Delivery System</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #eef2f5; }
+    header { display: flex; justify-content: space-between; align-items: center; background: #28a745; color: white; padding: 10px 20px; border-radius: 8px; }
+    header a { color: #fff; background: #1e7e34; padding: 8px 12px; text-decoration: none; border-radius: 4px; }
+    .card { background: white; padding: 20px; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .status { font-weight: bold; color: #ff9800; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>🏪 Vendor Dashboard</h2>
+    <!-- Customer সাইটে ফেরত যাওয়ার লিংক -->
+    <a href="../index.html">➔ Back to Customer Site</a>
+  </header>
+
+  <div class="card">
+    <h3>Incoming Orders</h3>
+    <div id="order-list">
+      <p><b>Order #101</b> - Burger Deluxe - <span class="status">Pending</span></p>
+      <p><b>Order #102</b> - Pizza Margherita - <span class="status">Preparing</span></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Add New Product</h3>
+    <input type="text" placeholder="Product Name" id="pName"><br><br>
+    <input type="number" placeholder="Price" id="pPrice"><br><br>
+    <button onclick="addProduct()">Add Product</button>
+  </div>
+
+  <script>
+    function addProduct() {
+      const name = document.getElementById('pName').value;
+      const price = document.getElementById('pPrice').value;
+      if(name && price) {
+        alert(`Product "${name}" added at $${price}!\n(Image upload to Supabase Bucket goes here)`);
+      } else {
+        alert('Please fill all fields');
+      }
+    }
+  </script>
+
+</body>
+</html>
+
