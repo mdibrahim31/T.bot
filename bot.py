@@ -1,26 +1,30 @@
 import os
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
+import asyncio
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("Start", callback_data="click_start")]
+TOKEN = os.getenv("BOT_TOKEN")
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Start", callback_data="click_start")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Nicher button-e click korun:", reply_markup=reply_markup)
+)
 
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if query.data == "click_start":
-        await query.edit_message_text(text="Welcome! Bot-e apnake shagotom janai! 🎉")
+@dp.message(F.text == "/start")
+async def start_command(message: Message):
+    await message.answer("Nicher button-e click korun:", reply_markup=keyboard)
 
-def main():
-    TOKEN = os.getenv("BOT_TOKEN")
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_click))
-    app.run_polling()
+@dp.callback_query(F.data == "click_start")
+async def button_click(callback: CallbackQuery):
+    await callback.message.edit_text(text="Welcome! Bot-e apnake shagotom janai! 🎉")
+    await callback.answer()
+
+async def main():
+    await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
