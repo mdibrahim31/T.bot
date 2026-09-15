@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vendor Dashboard - Add Data</title>
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h2>Vendor Panel: Add New Item</h2>
+    
+    <form id="vendorForm">
+        <input type="text" id="title" placeholder="Title/Product Name" required><br><br>
+        <textarea id="description" placeholder="Description" required></textarea><br><br>
+        <input type="text" id="imageUrl" placeholder="Image URL"><br><br>
+        <button type="submit">Publish to Customer Site</button>
+    </form>
+
+    <p id="statusMsg"></p>
+
+    <script>
+        // Supabase Credentials (Apnar project er URL & Anon Key ekhane boshaben)
+        const SUPABASE_URL = 'APNAR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'APNAR_SUPABASE_ANON_KEY';
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const form = document.getElementById('vendorForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const imageUrl = document.getElementById('imageUrl').value;
+            const statusMsg = document.getElementById('statusMsg');
+
+            // Database er 'posts' table-e data insert kora
+            const { data, error } = await supabase
+                .from('posts')
+                .insert([
+                    { title: title, description: description, image_url: imageUrl }
+                ]);
+
+            if (error) {
+                console.error('Error:', error);
+                statusMsg.style.color = 'red';
+                statusMsg.innerText = 'Data save korte somoshsha hocche!';
+            } else {
+                statusMsg.style.color = 'green';
+                statusMsg.innerText = 'Success! Customer site-e data chole geche.';
+                form.reset(); // Form clear kore dewa
+            }
+        });
+    </script>
+</body>
+</html>
